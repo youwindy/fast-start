@@ -1,0 +1,62 @@
+{
+  "name": "fast-start",
+  "version": "1.0.0",
+  "description": "Fast Start — uTools-like launcher",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder --win --x64",
+    "dist-dir": "electron-builder --win --x64 --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.fast-start.app",
+    "productName": "Fast Start",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*",
+      "!scripts/**",
+      "!AGENTS.md",
+      "!.npmrc",
+      "!.gitignore",
+      "!*.md"
+    ],
+    "afterPack": "./scripts/afterPack.js",
+    "asar": true,
+    "compression": "maximum",
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon-256.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Fast Start"
+    },
+    "removePackageScripts": true
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "pinyin-pro": "^3.28.1"
+  }
+}

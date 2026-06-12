@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5eafff"/>
+      <stop offset="100%" stop-color="#3b7fd9"/>
+    </linearGradient>
+  </defs>
+  <!-- 圆角背景 -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- 闪电/启动图标 -->
+  <path d="M280 80 L160 280 h80 l-8 152 160-200 h-80 l8-152z"
+        fill="#fff" opacity="0.95"/>
+</svg>

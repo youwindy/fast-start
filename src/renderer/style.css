@@ -1,0 +1,327 @@
+/* ── 全局重置 ── */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      /* ── 基础动画 ── */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-6px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      /* ── 窗口基础 ── */
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          "PingFang SC",
+          "Microsoft YaHei",
+          sans-serif;
+        background: rgba(22, 22, 34, 0.93);
+        color: #d0d0d0;
+        display: flex;
+        flex-direction: column;
+        border-radius: 14px;
+        animation: fadeIn 0.12s ease-out;
+        backdrop-filter: blur(24px);
+        -webkit-app-region: no-drag;
+      }
+
+      /* ── 搜索栏 ── */
+      #search-wrap {
+        position: relative;
+        padding: 14px 18px 10px;
+        flex-shrink: 0;
+      }
+      #search-input {
+        width: 100%;
+        padding: 11px 40px 11px 16px;
+        font-size: 15px;
+        color: #eee;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s,
+          background 0.2s;
+      }
+      #search-input::placeholder {
+        color: #555;
+      }
+      #search-input:focus {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(94, 175, 255, 0.3);
+        box-shadow:
+          0 0 0 3px rgba(94, 175, 255, 0.06),
+          inset 0 0 0 1px rgba(94, 175, 255, 0.06);
+      }
+
+      /* ── 更多按钮（搜索栏右侧） ── */
+      .more-btn {
+        position: absolute;
+        right: 22px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        border-radius: 6px;
+        color: #666;
+        font-size: 14px;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          background 0.15s;
+      }
+      .more-btn:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: #aaa;
+      }
+      .more-btn:active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* ── 更多下拉菜单 ── */
+      .more-dropdown {
+        position: fixed;
+        width: 140px;
+        background: rgba(30, 30, 42, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 10px;
+        padding: 4px 0;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity 0.1s,
+          transform 0.1s;
+        z-index: 99;
+      }
+      .more-dropdown.open {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .more-dropdown .item {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        padding: 7px 14px;
+        gap: 24px;
+        font-size: 13px;
+        color: #ccc;
+        cursor: pointer;
+        transition:
+          background 0.06s,
+          color 0.06s;
+      }
+      .more-dropdown .item:hover {
+        background: rgba(94, 175, 255, 0.12);
+        color: #eee;
+      }
+      .more-dropdown .sep {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        margin: 3px 10px;
+      }
+
+      /* ── 结果列表容器 ── */
+      #result-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 0 8px;
+      }
+      #result-list::-webkit-scrollbar {
+        width: 3px;
+      }
+      #result-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #result-list::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
+      }
+      #result-list::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* ── 结果分组（块状网格） ── */
+      .group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 2px 14px 6px;
+      }
+      .group-header {
+        width: 100%;
+        padding: 4px 6px 1px;
+        font-size: 10px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 600;
+      }
+
+      /* ── 结果卡片 ── */
+      .item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        width: 68px;
+        padding: 6px 2px 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: center;
+        transition:
+          background 0.1s,
+          transform 0.1s;
+      }
+      .item:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .item.sel {
+        background: rgba(94, 175, 255, 0.12);
+      }
+
+      /* ── 卡片图标 ── */
+      .item .ico {
+        font-size: 18px;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
+        flex-shrink: 0;
+      }
+      .item .ico-img {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+
+      /* ── 卡片文字 ── */
+      .item .body {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .item .body .tl {
+        font-size: 10px;
+        color: #e0e0e0;
+        line-height: 1.2;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .item .body .tl em {
+        font-style: normal;
+        color: #5eafff;
+      }
+      .item .body .desc {
+        font-size: 9px;
+        color: #555;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ── 空状态 ── */
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 48px 20px;
+        color: #444;
+        font-size: 13px;
+      }
+      .empty kbd {
+        display: inline-block;
+        padding: 2px 8px;
+        font-family: inherit;
+        font-size: 12px;
+        color: #666;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+      }
+
+      /* ── 上下文菜单（右键菜单） ── */
+      .menu-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+      }
+      .menu-box {
+        position: fixed;
+        min-width: 180px;
+        background: rgba(30, 30, 42, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 10px;
+        padding: 4px 0;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        transform: scale(0.96);
+        transition:
+          opacity 0.1s,
+          transform 0.1s;
+      }
+      .menu-box.open {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 7px 14px;
+        font-size: 13px;
+        color: #ccc;
+        cursor: pointer;
+        transition:
+          background 0.06s,
+          color 0.06s;
+      }
+      .menu-item:hover {
+        background: rgba(94, 175, 255, 0.12);
+        color: #eee;
+      }
+      .menu-item .menu-accel {
+        font-size: 11px;
+        color: #555;
+      }
+      .menu-sep {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        margin: 3px 10px;
+      }

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Fast Start</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="search-wrap">
+      <input
+        id="search-input"
+        type="text"
+        placeholder="搜索应用、计算、网页…"
+        spellcheck="false"
+        autofocus
+      />
+      <button id="more-btn" class="more-btn">···</button>
+    </div>
+    <div id="result-list">
+      <div class="empty">
+        <span style="font-size: 28px; opacity: 0.35">⌨</span>
+        <span>按 <kbd>Alt</kbd> + <kbd>Space</kbd> 切换窗口</span>
+      </div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

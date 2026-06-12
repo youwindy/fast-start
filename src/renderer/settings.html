@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>设置</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="title-bar"><h2>⚙ 设置</h2></div>
+
+  <div class="content">
+
+    <!-- 基本设置 -->
+    <div class="section">
+      <div class="section-title">基本</div>
+      <div class="row">
+        <div>
+          <div class="row-label">开机启动</div>
+          <div class="row-desc">系统启动时自动运行 Fast Start</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="chk-startup" />
+          <span class="track"></span>
+        </label>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">窗口置顶</div>
+          <div class="row-desc">启动器窗口始终显示在最前面</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="chk-ontop" />
+          <span class="track"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 应用管理 -->
+    <div class="section">
+      <div class="section-title">应用管理</div>
+      <div class="row">
+        <div>
+          <div class="row-label">手动导入应用</div>
+          <div class="row-desc">添加 .exe / .lnk 文件到搜索列表</div>
+        </div>
+        <button id="btn-import" class="btn btn-primary">+ 导入</button>
+      </div>
+      <div id="manual-list" class="manual-area"></div>
+      <div class="row">
+        <div>
+          <div class="row-label">清除启动次数</div>
+          <div class="row-desc">重置所有应用的启动频率记录</div>
+        </div>
+        <button id="btn-clear" class="btn btn-danger">清除</button>
+      </div>
+    </div>
+
+    <!-- 关于 -->
+    <div class="about">
+      <div class="name">Fast Start</div>
+      <div class="hint">按 <kbd>Alt</kbd> + <kbd>Space</kbd> 切换窗口</div>
+    </div>
+
+    <!-- 保存并退出 -->
+    <button id="btn-save" class="btn-save">✓ 保存并退出</button>
+
+  </div>
+
+  <script src="settings-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+/* ── 全局 ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font: 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+      background: rgba(22, 22, 34, 0.95);
+      color: #d0d0d0;
+      border-radius: 12px;
+      padding: 0;
+      display: flex; flex-direction: column;
+      -webkit-app-region: no-drag;
+      animation: fadeIn 0.12s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── 标题栏 ── */
+    .title-bar {
+      display: flex; align-items: center;
+      padding: 18px 24px 0;
+      flex-shrink: 0;
+    }
+    .title-bar h2 { font-size: 15px; font-weight: 600; color: #e0e0e0; }
+
+    /* ── 滚动内容 ── */
+    .content {
+      flex: 1; overflow-y: auto;
+      padding: 12px 24px 16px;
+      min-height: 0;
+    }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 2px; }
+
+    /* ── 分区 ── */
+    .section { margin-bottom: 6px; }
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 0 4px;
+    }
+
+    /* ── 设置项 ── */
+    .row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .row:last-child { border-bottom: none; }
+    .row-label { font-size: 13px; color: #d0d0d0; }
+    .row-desc { font-size: 11px; color: #555; margin-top: 2px; }
+
+    /* ── 开关 ── */
+    .switch {
+      position: relative;
+      width: 40px; height: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .track {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.06);
+      border-radius: 11px;
+      transition: background 0.2s;
+    }
+    .switch .track::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 2px; top: 2px;
+      background: #777;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .switch input:checked + .track { background: rgba(94, 175, 255, 0.35); }
+    .switch input:checked + .track::after {
+      transform: translateX(18px);
+      background: #5eafff;
+    }
+
+    /* ── 按钮 ── */
+    .btn {
+      border: none; border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary {
+      background: rgba(94,175,255,0.12);
+      color: #5eafff;
+    }
+    .btn-primary:hover { background: rgba(94,175,255,0.22); }
+    .btn-danger {
+      background: rgba(255,80,80,0.08);
+      color: #ff6666;
+      border: 1px solid rgba(255,80,80,0.12);
+    }
+    .btn-danger:hover { background: rgba(255,80,80,0.15); }
+
+    /* ── 手动应用列表 ── */
+    .manual-area {
+      padding: 4px 0;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+    .manual-area::-webkit-scrollbar { width: 3px; }
+    .manual-area::-webkit-scrollbar-track { background: transparent; }
+    .manual-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 2px; }
+    .manual-empty {
+      font-size: 11px; color: #555;
+      text-align: center; padding: 12px 0;
+    }
+    .manual-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .manual-item:last-child { border-bottom: none; }
+    .manual-item .info { min-width: 0; }
+    .manual-item .name { font-size: 12px; color: #ccc; }
+    .manual-item .path {
+      font-size: 10px; color: #555;
+      max-width: 220px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .manual-item .del {
+      background: none; border: none;
+      color: #555; font-size: 14px;
+      cursor: pointer; padding: 2px 6px;
+      transition: color 0.1s;
+      flex-shrink: 0;
+    }
+    .manual-item .del:hover { color: #ff6666; }
+
+    /* ── 保存并退出按钮 ── */
+    .btn-save {
+      display: block; width: 100%;
+      border: none; border-radius: 8px;
+      padding: 10px 0;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      background: rgba(94,175,255,0.1);
+      color: #5eafff;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    .btn-save:hover { background: rgba(94,175,255,0.2); }
+
+    /* ── 关于 ── */
+    .about {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px;
+      padding: 10px 0 4px;
+    }
+    .about .name { font-size: 12px; color: #555; }
+    .about .hint { font-size: 11px; color: #444; }
+    .about .hint kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      font-family: inherit;
+      font-size: 10px;
+      color: #555;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 3px;
+    }
