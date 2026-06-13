@@ -1,6 +1,6 @@
 {
   "name": "fast-start",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fast Start — uTools-like launcher",
   "main": "src/main/index.js",
   "scripts": {

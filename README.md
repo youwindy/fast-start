@@ -9,14 +9,15 @@
 - **Alt+Space** 全局快捷键，呼出/隐藏启动窗口
 - **插件系统** — `plugins/` 目录下放 `.js` 文件即自动注册，无需配置
 - **拼音搜索** — 支持中文程序名的拼音首字母/全拼搜索（基于 `pinyin-pro`）
-- **频率排序** — 根据启动次数自动排序，常用应用靠前
+- **频率排序** — 根据启动次数自动排序，常用应用靠前，空输入显示高频应用
 - **应用扫描** — 自动扫描「开始菜单」已安装应用，支持手动导入 `.exe`/`.lnk`
+- **系统功能** — 搜索 75+ 个 Windows 系统入口（回收站、设置、控制面板、环境变量等）
 - **计算器** — 输入数学表达式即时计算
-- **网页搜索** — 快捷 Google / Bing 搜索
-- **自定义设置** — 开机自启、窗口置顶、手动管理应用、清除频率数据
+- **网页搜索** — 支持 URL 检测、多搜索引擎快捷指令 (`gh:`/`b:`/`d:`/`w:`/`yt:`)
+- **自定义设置** — 开机自启、窗口置顶、插件启停、手动管理应用、清除频率数据
 - **系统托盘** — 左键切换窗口，右键菜单（显示/隐藏/设置/退出）
 - **多显示器** — 在鼠标所在屏幕居中弹出
-- **轻量打包** — NSIS 安装包约 78 MB，自动精简无用 Chromium 文件
+- **轻量打包** — NSIS 安装包约 79 MB，自动精简无用 Chromium 文件
 
 
 ## 快速开始
@@ -60,11 +61,16 @@ module.exports = {
 |---|---|---|
 | `title` | string | 标题 |
 | `desc` | string | 描述（选填） |
-| `icon` | string | 图标 emoji 或文字 |
-| `action.type` | `'copy'` / `'open'` | 动作类型 |
+| `icon` | string | 图标 emoji 或文字（选填） |
+| `action.type` | `'copy'` / `'open'` / `'openFile'` / `'run'` | 动作类型 |
 | `action.text` | string | `copy` 时复制的内容 |
-| `action.url` | string | `open` 时打开的 URL |
+| `action.url` | string | `open` 时以默认浏览器打开的 URL |
+| `action.path` | string | `openFile` 时打开的文件路径（支持 `.lnk` `.exe` 等） |
+| `action.command` | string | `run` 时执行的命令 (如 `cmd.exe`) |
+| `action.args` | string[] | `run` 时的命令行参数（选填） |
 
+> `run` 类型通过 `child_process.spawn()` 执行，支持带参数的系统命令（如回收站 `explorer.exe shell:RecycleBinFolder`）。
+>
 > 插件运行在主进程（无沙箱），添加外部插件前请审查代码。
 
 ## 技术栈
@@ -101,9 +107,10 @@ fast-start/
 │       ├── settings-app.js  # 设置逻辑
 │       └── settings.css     # 设置样式
 ├── plugins/
-│   ├── apps.js              # 应用搜索 + 频率排序
+│   ├── apps.js              # 应用搜索 + 频率排序 + 拼音搜索
 │   ├── calculator.js        # 计算器
-│   └── websearch.js         # 网页搜索
+│   ├── websearch.js         # 网页搜索（多引擎）
+│   └── system.js            # Windows 系统功能（75+ 入口）
 ├── resources/               # 图标资源
 ├── scripts/
 │   └── afterPack.js         # 打包后体积优化

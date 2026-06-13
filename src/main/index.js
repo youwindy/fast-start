@@ -1,5 +1,5 @@
 // 主进程入口 — 创建窗口、加载插件、注册 IPC、系统托盘、全局快捷键
-const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron')
+const { app, BrowserWindow, globalShortcut } = require('electron')
 const path = require('path')
 const { loadPlugins } = require('./plugin-loader')
 const { registerIPC } = require('./ipc')
@@ -8,7 +8,6 @@ const pluginLoader = require('./plugin-loader')
 const settings = require('./settings')
 
 let win
-let appStartTime = 0
 
 function createWindow() {
   const iconPath = path.join(__dirname, '..', '..', 'resources', 'icon-16.png')
@@ -32,7 +31,7 @@ function createWindow() {
 }
 
 function showWindow() {
-  win.setSize(640, 68)            // 显示前重置高度，由渲染进程重新调整
+  win.setContentSize(640, 68)     // 显示前重置高度，由渲染进程重新调整
   centerOnCursor()
   win.show()
   win.setAlwaysOnTop(true, 'screen-saver')
@@ -46,7 +45,7 @@ function centerOnCursor() {
   const cursor = screen.getCursorScreenPoint()
   const disp = screen.getDisplayNearestPoint(cursor)
   const { x, y, width, height } = disp.workArea
-  const [w, h] = win.getSize()
+  const [w, h] = win.getContentSize()
   win.setPosition(
     x + Math.round((width - w) / 2),
     y + Math.round((height - h) / 2),
@@ -54,9 +53,8 @@ function centerOnCursor() {
 }
 
 app.whenReady().then(() => {
-  appStartTime = Date.now()
   const plugins = loadPlugins()
-  settings.loadSettings()          // 读取持久化设置（开机启动等）
+  settings.loadSettings()
   createWindow()
   registerIPC(win, plugins, settings)
   createTray(win, showWindow)

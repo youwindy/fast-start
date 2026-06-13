@@ -18,9 +18,7 @@
       }
 
       /* ── 窗口基础 ── */
-      html,
-      body {
-        height: 100%;
+      html {
         overflow: hidden;
       }
       body {
@@ -102,10 +100,9 @@
         background: rgba(255, 255, 255, 0.1);
       }
 
-      /* ── 更多下拉菜单 ── */
-      .more-dropdown {
+      /* ── 共享弹层基础 ── */
+      .popup-box {
         position: fixed;
-        width: 140px;
         background: rgba(30, 30, 42, 0.97);
         border: 1px solid rgba(255, 255, 255, 0.07);
         border-radius: 10px;
@@ -116,18 +113,16 @@
         transition:
           opacity 0.1s,
           transform 0.1s;
-        z-index: 99;
       }
-      .more-dropdown.open {
+      .popup-box.open {
         opacity: 1;
         transform: scale(1);
       }
-      .more-dropdown .item {
+      .popup-row {
         display: flex;
-        width: 100%;
         align-items: center;
-        padding: 7px 14px;
         gap: 24px;
+        padding: 7px 14px;
         font-size: 13px;
         color: #ccc;
         cursor: pointer;
@@ -135,19 +130,24 @@
           background 0.06s,
           color 0.06s;
       }
-      .more-dropdown .item:hover {
+      .popup-row:hover {
         background: rgba(94, 175, 255, 0.12);
         color: #eee;
       }
-      .more-dropdown .sep {
+      .popup-sep {
         height: 1px;
         background: rgba(255, 255, 255, 0.05);
         margin: 3px 10px;
       }
 
+      /* ── 更多下拉菜单 ── */
+      .more-dropdown {
+        width: 140px;
+        z-index: 99;
+      }
+
       /* ── 结果列表容器 ── */
       #result-list {
-        flex: 1;
         overflow-y: auto;
         padding: 4px 0 8px;
       }
@@ -287,46 +287,10 @@
         z-index: 100;
       }
       .menu-box {
-        position: fixed;
         min-width: 180px;
-        background: rgba(30, 30, 42, 0.97);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 10px;
-        padding: 4px 0;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-        opacity: 0;
-        transform: scale(0.96);
-        transition:
-          opacity 0.1s,
-          transform 0.1s;
       }
-      .menu-box.open {
-        opacity: 1;
-        transform: scale(1);
-      }
-      .menu-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 24px;
-        padding: 7px 14px;
-        font-size: 13px;
-        color: #ccc;
-        cursor: pointer;
-        transition:
-          background 0.06s,
-          color 0.06s;
-      }
-      .menu-item:hover {
-        background: rgba(94, 175, 255, 0.12);
-        color: #eee;
-      }
-      .menu-item .menu-accel {
+      .menu-accel {
         font-size: 11px;
         color: #555;
-      }
-      .menu-sep {
-        height: 1px;
-        background: rgba(255, 255, 255, 0.05);
-        margin: 3px 10px;
+        margin-left: auto;
       }

@@ -10,17 +10,63 @@ const searchWrap = document.getElementById('search-wrap')
 // ── 状态 ──
 let flat = []       // 扁平结果列表（键盘索引用）
 let sel = -1        // 当前选中索引
-let resizeTimer = null
+let queryId = 0     // 防竞态计数器
+let loading = false // 窗口初始化中，阻止 input 事件触发重复 load
+let listPad = null  // 缓存 list 的 padding-top / padding-bottom
 
-// ── 防抖：测量内容高度，通知主进程调整窗口 ──
-function updateHeight() {
-  if (resizeTimer) cancelAnimationFrame(resizeTimer)
-  resizeTimer = requestAnimationFrame(() => {
-    resizeTimer = null
-    const total = searchWrap.offsetHeight + list.scrollHeight
-    window.electronAPI.resize(total)
-  })
+function getListPad() {
+  if (!listPad) {
+    const s = getComputedStyle(list)
+    listPad = { top: parseFloat(s.paddingTop), bottom: parseFloat(s.paddingBottom) }
+  }
+  return listPad
 }
+
+// ── 同步测量内容高度，通知主进程调整窗口 ──
+function updateHeight() {
+  const maxH = 480 - searchWrap.offsetHeight
+  list.style.maxHeight = (maxH > 0 ? maxH : 0) + 'px'
+
+  const last = list.lastElementChild
+  const pad = getListPad()
+  const h = last
+    ? Math.ceil(last.getBoundingClientRect().bottom + pad.bottom)
+    : Math.ceil(searchWrap.offsetHeight + pad.top + pad.bottom)
+  window.electronAPI.resize(Math.max(68, h))
+}
+
+// ===================================================================
+//  事件委托 — 条目的 click / dblclick / contextmenu / hover
+// ===================================================================
+
+list.addEventListener('click', (e) => {
+  const el = e.target.closest('.item')
+  if (!el) return
+  sel = +el.dataset.idx; hl()
+})
+
+list.addEventListener('dblclick', (e) => {
+  const el = e.target.closest('.item')
+  if (!el) return
+  pick(+el.dataset.idx)
+})
+
+list.addEventListener('contextmenu', async (e) => {
+  const el = e.target.closest('.item')
+  if (!el) return
+  e.preventDefault()
+  const idx = +el.dataset.idx
+  sel = idx; hl()
+  const item = flat[idx]
+  const menu = await window.electronAPI.getContextMenu({ idx, title: item.title, action: item.action })
+  showMenu(menu, idx, e.clientX, e.clientY)
+})
+
+list.addEventListener('mouseover', (e) => {
+  const el = e.target.closest('.item')
+  if (!el) return
+  sel = +el.dataset.idx; hl()
+})
 
 // ===================================================================
 //  搜索
@@ -28,14 +74,23 @@ function updateHeight() {
 
 // 每次输入触发搜索
 input.addEventListener('input', async () => {
+  if (loading) return
   const q = input.value.trim()
+  const id = ++queryId
   if (!q) {
-    list.innerHTML = emptyHTML()
-    flat = []; sel = -1
-    updateHeight()
+    const plugins = await window.electronAPI.getTopApps()
+    if (id !== queryId) return
+    if (plugins && plugins.length) {
+      render(plugins, '')
+    } else {
+      list.innerHTML = emptyHTML()
+      flat = []; sel = -1
+      updateHeight()
+    }
     return
   }
   const plugins = await window.electronAPI.search(q)
+  if (id !== queryId) return
   render(plugins, q)
 })
 
@@ -45,7 +100,6 @@ function render(plugins, q) {
   flat = []
 
   for (const p of plugins) {
-    // 插件分组
     const group = document.createElement('div')
     group.className = 'group'
 
@@ -58,12 +112,11 @@ function render(plugins, q) {
     }
     group.appendChild(hdr)
 
-    // 每项结果
     for (const item of p.items) {
       const el = document.createElement('div')
       el.className = 'item'
       el.dataset.idx = flat.length
-      el.title = item.title                     // 悬浮 tooltip 显示全名
+      el.title = item.title
 
       el.innerHTML =
         renderIcon(item.icon || p.pluginIcon) +
@@ -72,24 +125,12 @@ function render(plugins, q) {
           `${item.desc ? `<span class="desc">${esc(item.desc)}</span>` : ''}` +
         `</div>`
 
-      const idx = flat.length
-      el.addEventListener('click', () => { sel = idx; hl() })
-      el.addEventListener('dblclick', () => pick(idx))
-      el.addEventListener('contextmenu', async (e) => {
-        e.preventDefault()
-        sel = idx; hl()
-        const menu = await window.electronAPI.getContextMenu({ idx, title: item.title, action: item.action })
-        showMenu(menu, idx, e.clientX, e.clientY)
-      })
-      el.addEventListener('mouseenter', () => { sel = idx; hl() })
-
       group.appendChild(el)
       flat.push(item)
     }
     list.appendChild(group)
   }
 
-  // 默认选中第一项
   sel = flat.length > 0 ? 0 : -1
   hl()
   if (sel >= 0) scrollInto()
@@ -155,7 +196,6 @@ input.addEventListener('keydown', (e) => {
   }
 })
 
-// 滚动到当前选中项
 function scrollInto() {
   const el = list.querySelector(`.item[data-idx="${sel}"]`)
   if (el) el.scrollIntoView({ block: 'nearest' })
@@ -165,14 +205,13 @@ function scrollInto() {
 //  文本工具
 // ===================================================================
 
-// 高亮匹配文字
 function highlight(text, query) {
+  if (!query) return esc(text)
   const q = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const re = new RegExp(`(${q})`, 'gi')
   return esc(text).replace(re, '<em>$1</em>')
 }
 
-// HTML 转义
 function esc(s) {
   const d = document.createElement('div')
   d.textContent = s
@@ -190,7 +229,7 @@ function toggleMoreMenu() {
   dismissMoreMenu()
 
   moreDropdown = document.createElement('div')
-  moreDropdown.className = 'more-dropdown'
+  moreDropdown.className = 'more-dropdown popup-box'
 
   const items = [
     { label: '⚙ 设置', action: () => window.electronAPI.openSettings() },
@@ -201,12 +240,12 @@ function toggleMoreMenu() {
   for (const it of items) {
     if (it.sep) {
       const hr = document.createElement('div')
-      hr.className = 'sep'
+      hr.className = 'popup-sep'
       moreDropdown.appendChild(hr)
       continue
     }
     const el = document.createElement('div')
-    el.className = 'item'
+    el.className = 'popup-row'
     el.textContent = it.label
     el.addEventListener('click', () => { dismissMoreMenu(); it.action() })
     moreDropdown.appendChild(el)
@@ -229,7 +268,6 @@ moreBtn.addEventListener('click', (e) => {
   toggleMoreMenu()
 })
 
-// 点击外部关闭
 document.addEventListener('click', (e) => {
   if (moreDropdown && !moreDropdown.contains(e.target) && e.target !== moreBtn) {
     dismissMoreMenu()
@@ -243,26 +281,24 @@ document.addEventListener('click', (e) => {
 function showMenu(items, idx, cx, cy) {
   dismissMenu()
 
-  // 遮罩层
   const wrap = document.createElement('div')
   wrap.className = 'menu-overlay'
   wrap.addEventListener('click', dismissMenu)
   wrap.addEventListener('contextmenu', (e) => e.preventDefault())
 
-  // 菜单容器
   const box = document.createElement('div')
-  box.className = 'menu-box'
+  box.className = 'menu-box popup-box'
   box.addEventListener('click', (e) => e.stopPropagation())
 
   for (const it of items) {
     if (it.separator) {
       const hr = document.createElement('div')
-      hr.className = 'menu-sep'
+      hr.className = 'popup-sep'
       box.appendChild(hr)
       continue
     }
     const el = document.createElement('div')
-    el.className = 'menu-item'
+    el.className = 'popup-row'
     el.innerHTML =
       `<span class="menu-label">${esc(it.label)}</span>` +
       (it.accelerator ? `<span class="menu-accel">${esc(it.accelerator)}</span>` : '')
@@ -286,7 +322,6 @@ function showMenu(items, idx, cx, cy) {
   wrap.appendChild(box)
   document.body.appendChild(wrap)
 
-  // 自动定位，避免超出视口
   const bbox = box.getBoundingClientRect()
   const vw = document.documentElement.clientWidth
   const vh = document.documentElement.clientHeight
@@ -307,25 +342,21 @@ function dismissMenu() {
 //  IPC 事件监听（来自主进程）
 // ===================================================================
 
-// 键盘选中项执行（数字键等）
 window.electronAPI.onExec((idx) => pick(idx))
-
-// 打开设置窗口
 window.electronAPI.onOpenSettings(() => window.electronAPI.openSettings())
 
-// 窗口显示时：展示常用应用或空状态
 window.electronAPI.onShow(async () => {
   dismissMoreMenu()
+  loading = true
+  list.innerHTML = emptyHTML()
   input.value = ''
   flat = []; sel = -1
-
-  const plugins = await window.electronAPI.getTopApps()
-  if (plugins && plugins.length) {
-    render(plugins, '')
-  } else {
-    list.innerHTML = emptyHTML()
-  }
-
+  loading = false
   input.focus()
   updateHeight()
+
+  const id = ++queryId
+  const plugins = await window.electronAPI.getTopApps()
+  if (id !== queryId) return
+  if (plugins && plugins.length) render(plugins, '')
 })

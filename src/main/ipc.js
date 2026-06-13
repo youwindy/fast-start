@@ -55,6 +55,9 @@ function registerIPC(win, plugins, settings) {
       case 'runAsAdmin':
         spawn('powershell', ['-Command', `Start-Process -FilePath "${act.path}" -Verb RunAs`], { windowsHide: true })
         break
+      case 'run':
+        spawn(act.command, act.args || [], { windowsHide: true, shell: true })
+        break
     }
     win.hide()
   })
@@ -81,18 +84,23 @@ function registerIPC(win, plugins, settings) {
         { id: 'runas', label: '以管理员身份运行' },
       )
     }
+    if (a.type === 'run' && a.command) {
+      const cmdText = a.command + (a.args ? ' ' + a.args.join(' ') : '')
+      result.push({ id: 'exec', label: '复制命令', payload: { type: 'copy', text: cmdText } })
+    }
     return result
   })
 
   ipcMain.on('resize', (_, h) => {
-    win.setSize(640, Math.min(Math.max(h, 68), 480))
+    const clamped = Math.min(Math.max(h, 68), 480)
+    win.setContentSize(640, clamped)
     if (win.isVisible()) {
       const { screen } = require('electron')
       const cursor = screen.getCursorScreenPoint()
       const disp = screen.getDisplayNearestPoint(cursor)
       const { x, y, width, height } = disp.workArea
-      const [w, h2] = win.getSize()
-      win.setPosition(x + Math.round((width - w) / 2), y + Math.round((height - h2) / 2))
+      const [cw, ch] = win.getContentSize()
+      win.setPosition(x + Math.round((width - cw) / 2), y + Math.round((height - ch) / 2))
     }
   })
 

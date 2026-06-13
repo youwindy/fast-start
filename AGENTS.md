@@ -21,13 +21,17 @@ uTools-like launcher built with Electron — vanilla JS, no bundler.
 | Preload | `src/preload/index.js` | `contextBridge`-exposed API: `search()`, `action()`, `getPlugins()`, `togglePlugin()`, `onShow()`, `hide()`, `quit()` |
 | Renderer | `src/renderer/index.html` + `app.js` + `style.css` | Search input + result list, keyboard nav (↑↓ Enter Esc), plugin error display |
 | | `src/renderer/settings.html` + `settings-app.js` + `settings.css` | Settings page (toggles, import, plugin enable/disable, save & quit) |
-| Plugins | `plugins/*.js` | Each exports `{ name, icon, version, description, author, search(query) ⇒ items[] }` |
+| Plugins | `plugins/apps.js` | Start Menu scan + frecency + pinyin + manual apps |
+| | `plugins/calculator.js` | Safe math expression evaluation |
+| | `plugins/websearch.js` | Multi-engine search + URL detection + command shortcuts |
+| | `plugins/system.js` | 75+ Windows system functions (Recycle Bin, Settings, Control Panel, Env Vars, etc.) |
 
 ## How it works
 
 - `Alt+Space` toggles the launcher window (frameless, centered, always-on-top)
+- On show: renders empty state immediately → resizes window to fit → loads top apps from frecency
 - Typing invokes `ipcMain.handle('search', …)` which runs every plugin's `search()` in the main process (async, 5s timeout per plugin, errors per plugin don't block others)
-- Each plugin returns result items with an `action` descriptor (`{ type: 'copy' | 'open', … }`)
+- Each plugin returns result items with an `action` descriptor (`{ type: 'copy' | 'open' | 'openFile' | 'run', … }`)
 - Selection runs the action via `ipcMain.on('action', …)`, then the window hides
 - Plugins are `require()`d from `plugins/` directory at startup
 - If a plugin exports an `init()` function, it's called after `require()` (used for preloading data, e.g., scanning Start Menu)
@@ -50,10 +54,42 @@ module.exports = {
 Each `Item`:
 
 ```js
-{ title: '…', desc: '…', icon: '…', action: { type: 'copy'|'open', text/url: '…' } }
+{ title: '…', desc: '…', icon: '…', action: { type: 'copy'|'open'|'openFile'|'run', … } }
 ```
 
+**Action types:**
+
+| Type | Fields | Behavior |
+|---|---|---|
+| `copy` | `text` | Copy to clipboard |
+| `open` | `url` | Open in default browser |
+| `openFile` | `path` | Open file/folder (supports `.lnk` `.exe` `.msc` etc.) |
+| `run` | `command`, `args?` | Spawn a command with optional arguments (e.g., `explorer.exe shell:RecycleBinFolder`) |
+| `runAsAdmin` | `path` | Run file as administrator |
+| `showInFolder` | `path` | Reveal file in Explorer |
+
 Add new plugins by creating a `.js` file in `plugins/` — no registration needed.
+
+## Renderer architecture
+
+### Layout
+- **No `height: 100%` on body** — body auto-sizes to content, avoiding flex allocation measurement issues
+- **No `flex: 1` on `#result-list`** — list auto-sizes to children with dynamic `max-height` calc via JS (`480 - searchWrap.offsetHeight`)
+- `html { overflow: hidden }` clips excess content when window is capped
+
+### Height measurement (`updateHeight`)
+- Uses `getBoundingClientRect().bottom` of the **last child** element plus `list.paddingBottom` → always returns actual content height
+- `scrollHeight` is unreliable in flex layouts because it returns `clientHeight` when content fits without overflow
+- `setContentSize` used in main process for frameless window reliability
+- Minimum clamp: `Math.max(68, h)` in renderer, `Math.min(Math.max(h, 68), 480)` in main process
+
+### Event delegation
+- `.item` elements use **event delegation** on the `#result-list` container via `e.target.closest('.item')`
+- Eliminates per-item `click`/`dblclick`/`contextmenu`/`mouseover` listeners — significant perf win for large result sets
+
+### Race condition prevention
+- `queryId` counter: each `input` event increments, stale async results are discarded if `id !== queryId`
+- `loading` flag: suppresses `input` event handler during `onShow` to prevent duplicate `getTopApps` calls
 
 ## Security
 
