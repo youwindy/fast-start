@@ -181,6 +181,11 @@
         letter-spacing: 1.2px;
         font-weight: 600;
       }
+      .group-header .plugin-error {
+        cursor: help;
+        opacity: 0.6;
+        margin-left: 4px;
+      }
 
       /* ── 结果卡片 ── */
       .item {

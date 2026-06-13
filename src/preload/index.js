@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   search: (q) => ipcRenderer.invoke('search', q),
   getTopApps: () => ipcRenderer.invoke('getTopApps'),
+  getPlugins: () => ipcRenderer.invoke('getPlugins'),
+  togglePlugin: (id) => ipcRenderer.invoke('togglePlugin', id),
   addManualApp: () => ipcRenderer.invoke('addManualApp'),
   getManualApps: () => ipcRenderer.invoke('getManualApps'),
   removeManualApp: (p) => ipcRenderer.invoke('removeManualApp', p),

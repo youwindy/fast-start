@@ -4,6 +4,7 @@
     const btn = document.getElementById('btn-import')
     const btnClear = document.getElementById('btn-clear')
     const mList = document.getElementById('manual-list')
+    const pluginList = document.getElementById('plugin-list')
 
     // ── 安全注册事件（任一失败不影响后续） ──
     function on(el, event, fn) {
@@ -39,6 +40,32 @@
       const d = document.createElement('div')
       d.textContent = s
       return d.innerHTML
+    }
+
+    // ── 插件开关列表 ──
+    function renderPlugins() {
+      window.electronAPI.getPlugins().then(plugins => {
+        pluginList.innerHTML = plugins.map(p => `
+          <div class="plugin-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">${esc(p.icon)}</span>
+              <div>
+                <div class="plugin-name">${esc(p.name)}</div>
+                <div class="plugin-meta">v${esc(p.version)}${p.author ? ' by ' + esc(p.author) : ''}${p.description ? ' — ' + esc(p.description) : ''}</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" class="plugin-toggle" data-id="${esc(p.id)}" ${p.enabled ? 'checked' : ''} />
+              <span class="track"></span>
+            </label>
+          </div>
+        `).join('')
+        pluginList.querySelectorAll('.plugin-toggle').forEach(el => {
+          el.addEventListener('change', () => {
+            window.electronAPI.togglePlugin(el.dataset.id)
+          })
+        })
+      })
     }
 
     // ── 加载设置 ──
@@ -81,3 +108,4 @@
 
     // ── 初始化 ──
     renderManualApps()
+    renderPlugins()

@@ -2,6 +2,8 @@
 
 基于 Electron 的 uTools 风格快速启动器，支持插件系统、拼音搜索、频率排序、系统托盘。
 
+使用OpenCode开发，欢迎PR。
+
 ## 特性
 
 - **Alt+Space** 全局快捷键，呼出/隐藏启动窗口
@@ -16,9 +18,6 @@
 - **多显示器** — 在鼠标所在屏幕居中弹出
 - **轻量打包** — NSIS 安装包约 78 MB，自动精简无用 Chromium 文件
 
-## 截图
-
-<!-- TODO: 添加截图 -->
 
 ## 快速开始
 
@@ -46,20 +45,12 @@ npm run dist-dir
 
 ```js
 module.exports = {
-  name: '插件名称',
-  icon: '🔌',
-  search(query) {
-    // query: string
-    // 返回 Item[]
-    return [
-      {
-        title: '结果标题',
-        desc: '描述文字',
-        icon: '📄',
-        action: { type: 'copy', text: '复制内容' },
-      },
-    ]
-  },
+  name: '插件名称',         // string (必填)
+  icon: '🔌',                 // string (必填, emoji 或文字)
+  version: '1.0.0',          // string (选填)
+  description: '…',          // string (选填)
+  author: '…',               // string (选填)
+  search(query) { … }         // (query: string) ⇒ Item[] | Promise<Item[]>
 }
 ```
 

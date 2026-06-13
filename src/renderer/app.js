@@ -51,7 +51,11 @@ function render(plugins, q) {
 
     const hdr = document.createElement('div')
     hdr.className = 'group-header'
-    hdr.textContent = `${p.pluginIcon} ${p.pluginName}`
+    if (p.error) {
+      hdr.innerHTML = `${esc(p.pluginIcon)} ${esc(p.pluginName)} <span class="plugin-error" title="${esc(p.error)}">⚠️</span>`
+    } else {
+      hdr.textContent = `${p.pluginIcon} ${p.pluginName}`
+    }
     group.appendChild(hdr)
 
     // 每项结果

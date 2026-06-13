@@ -14,19 +14,19 @@ uTools-like launcher built with Electron — vanilla JS, no bundler.
 | Layer | File | Role |
 |---|---|---|
 | Main process | `src/main/index.js` | Entry, window, hotkey — delegates to `plugin-loader.js` + `ipc.js` |
-| | `src/main/plugin-loader.js` | Plugin loader, calls `init()` if present |
-| | `src/main/ipc.js` | All IPC handlers (search, action, resize, context-menu) |
-| | `src/main/settings.js` | Settings CRUD + settings window management |
+| | `src/main/plugin-loader.js` | Plugin loader: `loadPlugins()` → calls `init()`, stores metadata; `getPluginsMeta()` → returns all plugin info; `destroyAllPlugins()` → calls `destroy()` |
+| | `src/main/ipc.js` | All IPC handlers (async search with 5s timeout, action, resize, context-menu, plugin toggle) |
+| | `src/main/settings.js` | Settings CRUD + settings window management + pluginStates storage |
 | | `src/main/tray.js` | System tray icon + context menu |
-| Preload | `src/preload/index.js` | `contextBridge`-exposed API: `search()`, `action()`, `onShow()`, `hide()`, `quit()` |
-| Renderer | `src/renderer/index.html` + `app.js` + `style.css` | Search input + result list, keyboard nav (↑↓ Enter Esc) |
-| | `src/renderer/settings.html` + `settings-app.js` + `settings.css` | Settings page (toggles, import, save & quit) |
-| Plugins | `plugins/*.js` | Each exports `{ name, icon, search(query) ⇒ items[] }` |
+| Preload | `src/preload/index.js` | `contextBridge`-exposed API: `search()`, `action()`, `getPlugins()`, `togglePlugin()`, `onShow()`, `hide()`, `quit()` |
+| Renderer | `src/renderer/index.html` + `app.js` + `style.css` | Search input + result list, keyboard nav (↑↓ Enter Esc), plugin error display |
+| | `src/renderer/settings.html` + `settings-app.js` + `settings.css` | Settings page (toggles, import, plugin enable/disable, save & quit) |
+| Plugins | `plugins/*.js` | Each exports `{ name, icon, version, description, author, search(query) ⇒ items[] }` |
 
 ## How it works
 
 - `Alt+Space` toggles the launcher window (frameless, centered, always-on-top)
-- Typing invokes `ipcMain.handle('search', …)` which runs every plugin's `search()` in the main process
+- Typing invokes `ipcMain.handle('search', …)` which runs every plugin's `search()` in the main process (async, 5s timeout per plugin, errors per plugin don't block others)
 - Each plugin returns result items with an `action` descriptor (`{ type: 'copy' | 'open', … }`)
 - Selection runs the action via `ipcMain.on('action', …)`, then the window hides
 - Plugins are `require()`d from `plugins/` directory at startup
@@ -38,9 +38,12 @@ A plugin file must export:
 
 ```js
 module.exports = {
-  name: 'Display name',      // string
-  icon: '🔢',                  // string (emoji or text)
-  search(query) { … }          // (query: string) ⇒ Item[]
+  name: 'Display name',     // string (required)
+  icon: '🔢',                 // string (required, emoji or text)
+  version: '1.0.0',          // string (optional)
+  description: '…',          // string (optional)
+  author: '…',               // string (optional)
+  search(query) { … }         // (query: string) ⇒ Item[] | Promise<Item[]>
 }
 ```
 
@@ -58,6 +61,13 @@ Add new plugins by creating a `.js` file in `plugins/` — no registration neede
 - CSP set via `<meta>` tag in `index.html`
 - All IPC goes through `contextBridge` only
 - Plugins run in the **main process** (no sandbox), so review external plugins before adding
+
+## Plugin management in settings
+
+- Settings page shows all plugins with metadata (version, description, author)
+- Each plugin has a toggle switch to enable/disable without deleting the file
+- Disabled plugins are skipped in search and `getTopApps`
+- Plugins can implement `destroy()` for cleanup when disabled or app quits
 
 ## App Icon
 

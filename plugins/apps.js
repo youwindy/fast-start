@@ -1,29 +1,21 @@
-/* ============================================================
-   插件：应用搜索 — 扫描开始菜单、拼音匹配、手动导入、启动频率
-   ============================================================ */
-
 const fs = require('fs')
 const path = require('path')
 const { app } = require('electron')
 const pinyin = require('pinyin-pro')
 
-// ── 开始菜单目录 ──
 const START_MENU_DIRS = [
   path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
   path.join(process.env.PROGRAMDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
 ]
 
-// ── 状态 ──
-let cache = []         // 开始菜单扫描结果
-let manualApps = []    // 手动导入的应用
-let allApps = []       // 合并后的完整列表（用于搜索）
-let frecency = new Map()  // 启动频率 <路径, 次数>
+let cache = []
+let manualApps = []
+let allApps = []
+let frecency = new Map()
 let frecencyPath = ''
 let manualAppsPath = ''
-
-// ===================================================================
-//  开始菜单扫描
-// ===================================================================
+let pinyinCache = {}
+let pinyinCachePath = ''
 
 function scan() {
   const map = new Map()
@@ -34,7 +26,6 @@ function scan() {
   cache = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// 递归遍历目录，收集 .lnk 快捷方式
 function walk(dir, map) {
   let entries
   try { entries = fs.readdirSync(dir, { withFileTypes: true }) }
@@ -44,17 +35,17 @@ function walk(dir, map) {
     if (entry.isDirectory()) {
       walk(full, map)
     } else if (entry.isFile() && entry.name.endsWith('.lnk') && !entry.name.startsWith('desktop.ini')) {
-      const name = entry.name.replace(/\.lnk$/i, '').replace(/ - .*$/, '').trim()
+      const name = entry.name.replace(/\.lnk$/i, '')
+        .replace(/ - .*$/, '')
+        .replace(/\s*\(.*?\)\s*$/, '')
+        .replace(/\s[\d]+(?:\.[\d]+)*\s*$/, '')
+        .trim()
       if (name && !map.has(full)) {
         map.set(full, { name, path: full })
       }
     }
   }
 }
-
-// ===================================================================
-//  频率记录持久化
-// ===================================================================
 
 function loadFrecency() {
   try { frecencyPath = path.join(app.getPath('userData'), 'frecency.json') } catch {}
@@ -68,15 +59,37 @@ function loadFrecency() {
 }
 
 function saveFrecency() {
+  if (!frecencyPath) return
   try {
-    const obj = Object.fromEntries(frecency)
-    fs.writeFileSync(frecencyPath, JSON.stringify(obj), 'utf8')
+    fs.writeFileSync(frecencyPath, JSON.stringify(Object.fromEntries(frecency)), 'utf8')
   } catch {}
 }
 
-// ===================================================================
-//  手动导入应用持久化
-// ===================================================================
+function loadPinyinCache() {
+  try { pinyinCachePath = path.join(app.getPath('userData'), 'pinyin-cache.json') } catch {}
+  if (!pinyinCachePath) return
+  try {
+    pinyinCache = JSON.parse(fs.readFileSync(pinyinCachePath, 'utf8'))
+  } catch { pinyinCache = {} }
+}
+
+function savePinyinCache() {
+  if (!pinyinCachePath) return
+  try {
+    fs.writeFileSync(pinyinCachePath, JSON.stringify(pinyinCache), 'utf8')
+  } catch {}
+}
+
+function getPinyin(name) {
+  if (pinyinCache[name]) return pinyinCache[name]
+  if (!/[\u4e00-\u9fff]/.test(name)) return null
+  const result = {
+    full: pinyin.pinyin(name, { toneType: 'none' }).replace(/\s/g, ''),
+    first: pinyin.pinyin(name, { pattern: 'first', toneType: 'none', separator: '' }),
+  }
+  pinyinCache[name] = result
+  return result
+}
 
 function loadManualApps() {
   try { manualAppsPath = path.join(app.getPath('userData'), 'manual-apps.json') } catch {}
@@ -87,16 +100,12 @@ function loadManualApps() {
 }
 
 function saveManualApps() {
+  if (!manualAppsPath) return
   try {
     fs.writeFileSync(manualAppsPath, JSON.stringify(manualApps, null, 2), 'utf8')
   } catch {}
 }
 
-// ===================================================================
-//  合并缓存
-// ===================================================================
-
-// 合并开始菜单 + 手动导入，计算拼音（去重）
 function rebuildAllApps() {
   const seen = new Set()
   allApps = []
@@ -106,43 +115,53 @@ function rebuildAllApps() {
     allApps.push(item)
   }
   for (const item of allApps) {
-    const hasChinese = /[\u4e00-\u9fff]/.test(item.name)
-    if (hasChinese) {
-      item.pinyinFull = pinyin.pinyin(item.name, { toneType: 'none' }).replace(/\s/g, '')
-      item.pinyinFirst = pinyin.pinyin(item.name, { pattern: 'first', toneType: 'none', separator: '' })
+    const py = getPinyin(item.name)
+    if (py) {
+      item.pinyinFull = py.full
+      item.pinyinFirst = py.first
     }
   }
 }
 
-// ===================================================================
-//  插件导出
-// ===================================================================
+function matchToken(a, token) {
+  const lower = a.name.toLowerCase()
+  if (lower.startsWith(token)) return 100
+  if (lower.includes(token)) return 80
+  if (a.pinyinFull?.includes(token)) return 60
+  if (a.pinyinFirst?.includes(token)) return 50
+  return 0
+}
 
 module.exports = {
   name: 'Apps',
   icon: '📱',
+  version: '1.1.0',
+  description: '扫描开始菜单，支持拼音搜索、频率排序和多关键词',
+  author: 'Fast Start',
 
-  // 初始化：扫描 + 加载频率 + 加载手动导入
   init() {
     scan()
     loadFrecency()
     loadManualApps()
+    loadPinyinCache()
     rebuildAllApps()
   },
 
-  // 记录启动
+  destroy() {
+    saveFrecency()
+    savePinyinCache()
+  },
+
   trackLaunch(p) {
     frecency.set(p, (frecency.get(p) || 0) + 1)
     saveFrecency()
   },
 
-  // 清空频率记录
   clearFrecency() {
     frecency.clear()
     saveFrecency()
   },
 
-  // ── 手动导入管理 ──
   addManualApp(name, filePath) {
     manualApps.push({ name, path: filePath })
     saveManualApps()
@@ -157,7 +176,6 @@ module.exports = {
     return manualApps.map(a => ({ name: a.name, path: a.path }))
   },
 
-  // 返回启动次数最多的 n 个应用
   getTopApps(n) {
     return allApps
       .map(a => ({ name: a.name, path: a.path, freq: frecency.get(a.path) || 0 }))
@@ -172,27 +190,31 @@ module.exports = {
       }))
   },
 
-  // 搜索：拼音 + 原名 + 频率加权排序
   search(query) {
     const q = query.toLowerCase().trim()
+    const tokens = q.split(/\s+/).filter(Boolean)
+    if (!tokens.length) return []
+
     const scored = []
     for (const a of allApps) {
-      const lower = a.name.toLowerCase()
-      let match = false, score = 0
-      if (lower.startsWith(q))             { match = true; score = 100 }
-      else if (lower.includes(q))          { match = true; score = 80 }
-      else if (a.pinyinFull?.includes(q))  { match = true; score = 60 }
-      else if (a.pinyinFirst?.includes(q)) { match = true; score = 50 }
-      if (match) {
+      let total = 0, ok = true
+      for (const t of tokens) {
+        const s = matchToken(a, t)
+        if (!s) { ok = false; break }
+        total += s
+      }
+      if (ok) {
         scored.push({
           name: a.name,
           path: a.path,
-          score: score + (frecency.get(a.path) || 0) * 50,
+          score: total + (frecency.get(a.path) || 0) * 50 * tokens.length,
         })
       }
     }
+
     scored.sort((a, b) => b.score - a.score)
-    return scored.slice(0, 8).map(a => ({
+    const limit = q.length <= 2 ? 12 : 8
+    return scored.slice(0, limit).map(a => ({
       title: a.name,
       desc: '回车启动',
       icon: '🚀',

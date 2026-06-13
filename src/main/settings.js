@@ -58,7 +58,7 @@ function openSettingsWindow() {
   }
   const win = new BrowserWindow({
     width: 360,
-    height: 380,
+    height: 500,
     resizable: false,
     frame: false,
     transparent: true,

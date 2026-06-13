@@ -1,16 +1,24 @@
-// 插件加载器 — 扫描 plugins/ 目录，require() 每个 .js 文件，调用 init()
 const fs = require('fs')
 const path = require('path')
 
+let plugins = []
+
 function loadPlugins() {
-  const plugins = []
   const dir = path.join(__dirname, '..', '..', 'plugins')
-  if (!fs.existsSync(dir)) return plugins
+  if (!fs.existsSync(dir)) return []
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     try {
       const mod = require(path.join(dir, file))
       if (typeof mod.init === 'function') mod.init()
-      plugins.push({ name: file.replace('.js', ''), module: mod })
+      plugins.push({
+        id: file.replace('.js', ''),
+        name: mod.name || file.replace('.js', ''),
+        icon: mod.icon || '📦',
+        version: mod.version || '0.0.0',
+        description: mod.description || '',
+        author: mod.author || '',
+        module: mod,
+      })
     } catch (e) {
       console.error(`[plugin] failed to load ${file}:`, e.message)
     }
@@ -18,4 +26,25 @@ function loadPlugins() {
   return plugins
 }
 
-module.exports = { loadPlugins }
+function getPluginsMeta() {
+  return plugins.map(p => ({
+    id: p.id,
+    name: p.name,
+    icon: p.icon,
+    version: p.version,
+    description: p.description,
+    author: p.author,
+  }))
+}
+
+function destroyAllPlugins() {
+  for (const p of plugins) {
+    try {
+      if (typeof p.module.destroy === 'function') p.module.destroy()
+    } catch (e) {
+      console.error(`[plugin] ${p.id} destroy error:`, e.message)
+    }
+  }
+}
+
+module.exports = { loadPlugins, getPluginsMeta, destroyAllPlugins }

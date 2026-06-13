@@ -4,6 +4,7 @@ const path = require('path')
 const { loadPlugins } = require('./plugin-loader')
 const { registerIPC } = require('./ipc')
 const { createTray } = require('./tray')
+const pluginLoader = require('./plugin-loader')
 const settings = require('./settings')
 
 let win
@@ -65,4 +66,7 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('will-quit', () => globalShortcut.unregisterAll())
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+  pluginLoader.destroyAllPlugins()
+})
