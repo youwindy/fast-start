@@ -127,12 +127,14 @@ function registerIPC(win, plugins, pluginLoader, settings) {
     pluginLoader.reloadPlugins()
   })
 
-  ipcMain.handle('addManualApp', async () => {
-    const result = await dialog.showOpenDialog({
+  ipcMain.handle('addManualApp', async (event) => {
+    const dialogWin = BrowserWindow.fromWebContents(event.sender)
+    const result = await dialog.showOpenDialog(dialogWin || win, {
       title: '选择应用',
       filters: [{ name: '应用程序', extensions: ['exe', 'lnk', 'url'] }],
       properties: ['openFile'],
     })
+    if (dialogWin) dialogWin.setAlwaysOnTop(true)
     if (result.canceled || !result.filePaths.length) return null
     const fp = result.filePaths[0]
     let name = path.basename(fp)
@@ -146,12 +148,14 @@ function registerIPC(win, plugins, pluginLoader, settings) {
     return { name, path: fp }
   })
 
-  ipcMain.handle('importPlugin', async () => {
-    const result = await dialog.showOpenDialog({
+  ipcMain.handle('importPlugin', async (event) => {
+    const dialogWin = BrowserWindow.fromWebContents(event.sender)
+    const result = await dialog.showOpenDialog(dialogWin || win, {
       title: '导入插件',
       filters: [{ name: '插件文件', extensions: ['js'] }],
       properties: ['openFile'],
     })
+    if (dialogWin) dialogWin.setAlwaysOnTop(true)
     if (result.canceled || !result.filePaths.length) return null
 
     const filePath = result.filePaths[0]
@@ -193,7 +197,7 @@ function registerIPC(win, plugins, pluginLoader, settings) {
 
   ipcMain.on('openSettings', () => {
     if (Date.now() - appStartTime < 3000) return
-    settings.openSettingsWindow()
+    settings.openSettingsWindow(win)
   })
   ipcMain.on('closeSettings', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close()

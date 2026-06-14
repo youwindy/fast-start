@@ -51,10 +51,13 @@ function applyWindowSettings(win) {
   } catch {}
 }
 
-function openSettingsWindow() {
+function openSettingsWindow(mainWin) {
   if (settingsWin && !settingsWin.isDestroyed()) {
     settingsWin.focus()
     return settingsWin
+  }
+  if (mainWin && !mainWin.isDestroyed()) {
+    mainWin.setAlwaysOnTop(true, 'floating')
   }
   const win = new BrowserWindow({
     width: 360,
@@ -85,9 +88,18 @@ function openSettingsWindow() {
     win.show()
     win.setAlwaysOnTop(true, 'screen-saver')
   })
-  win.on('closed', () => { if (settingsWin === win) settingsWin = null })
+  win.on('closed', () => {
+    if (settingsWin === win) settingsWin = null
+    if (mainWin && !mainWin.isDestroyed() && mainWin.isVisible()) {
+      mainWin.setAlwaysOnTop(true, 'screen-saver')
+    }
+  })
   settingsWin = win
   return win
 }
 
-module.exports = { loadSettings, getSettings, setSettings, openSettingsWindow, applyWindowSettings }
+function isSettingsOpen() {
+  return !!(settingsWin && !settingsWin.isDestroyed())
+}
+
+module.exports = { loadSettings, getSettings, setSettings, openSettingsWindow, applyWindowSettings, isSettingsOpen }

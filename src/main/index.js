@@ -32,7 +32,7 @@ function showWindow() {
   win.setContentSize(640, 68)
   centerOnCursor()
   win.show()
-  win.setAlwaysOnTop(true, 'screen-saver')
+  win.setAlwaysOnTop(true, settings.isSettingsOpen() ? 'floating' : 'screen-saver')
   win.focus()
   win.webContents.send('show')
 }
