@@ -2,10 +2,15 @@ const { parentPort, workerData } = require('worker_threads')
 const fs = require('fs')
 const path = require('path')
 
+if (workerData.appData && !process.env.APPDATA) process.env.APPDATA = workerData.appData
+if (workerData.programData && !process.env.PROGRAMDATA) process.env.PROGRAMDATA = workerData.programData
+
 const Module = require('module')
 const origRequire = Module.prototype.require
 Module.prototype.require = function (id) {
-  if (id === 'electron') return { app: { getPath: () => workerData.userDataPath } }
+  if (id === 'electron') {
+    return { app: { getPath: () => workerData.userDataPath || '' } }
+  }
   return origRequire.apply(this, arguments)
 }
 
@@ -26,7 +31,7 @@ function loadAll() {
       if (typeof mod.init === 'function') mod.init()
       plugins.push({ id: file.replace('.js', ''), module: mod })
     } catch (e) {
-      console.error(`[plugin-worker] failed to load ${file}: ${e.message}`)
+      console.error(`[plugin-worker] failed to load ${file}:`, e.stack || e.message)
     }
   }
 }
@@ -63,7 +68,7 @@ parentPort.on('message', (msg) => {
             tRes.push({ pluginName: p.module.name, pluginIcon: p.module.icon, items })
           }
         } catch (e) {
-          console.error(`[plugin-worker] ${p.id} getTopApps: ${e.message}`)
+          console.error(`[plugin-worker] ${p.id} getTopApps:`, e.message)
         }
       }
       parentPort.postMessage({ type: 'result', id: msg.id, results: tRes })

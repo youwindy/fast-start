@@ -43,7 +43,12 @@ function initWorker() {
   const pluginsDir = path.join(__dirname, '..', '..', 'plugins')
 
   worker = new Worker(path.join(__dirname, 'plugin-worker.js'), {
-    workerData: { pluginsDir, userDataPath },
+    workerData: {
+      pluginsDir,
+      userDataPath,
+      appData: process.env.APPDATA || '',
+      programData: process.env.PROGRAMDATA || '',
+    },
   })
 
   worker.on('message', (msg) => {
