@@ -14,8 +14,9 @@ uTools-like launcher built with Electron — vanilla JS, no bundler.
 | Layer | File | Role |
 |---|---|---|
 | Main process | `src/main/index.js` | Entry, window, hotkey — delegates to `plugin-loader.js` + `ipc.js` |
-| | `src/main/plugin-loader.js` | Plugin loader: `loadPlugins()` → calls `init()`, stores metadata; `getPluginsMeta()` → returns all plugin info; `destroyAllPlugins()` → calls `destroy()` |
-| | `src/main/ipc.js` | All IPC handlers (async search with 5s timeout, action, resize, context-menu, plugin toggle) |
+| | `src/main/plugin-loader.js` | Plugin loader: `loadPlugins()` → calls `init()`, stores metadata + module refs for non-search ops; `initWorker()` → spawns Worker thread; proxy methods (`searchAll`, `getTopApps`, `trackLaunch`) → IPC to Worker; `importPlugin` → validate + copy; `destroyAllPlugins()` → signals Worker to exit |
+| | `src/main/plugin-worker.js` | **Worker thread** — mocks `require('electron')` for plugins that use `app.getPath()`, loads all plugins, handles `search`/`getTopApps`/`reload`/`destroy`/`trackLaunch` messages from main thread |
+| | `src/main/ipc.js` | All IPC handlers (search/getTopApps proxied to Worker, action, resize, context-menu, plugin toggle, importPlugin) |
 | | `src/main/settings.js` | Settings CRUD + settings window management + pluginStates storage |
 | | `src/main/tray.js` | System tray icon + context menu |
 | Preload | `src/preload/index.js` | `contextBridge`-exposed API: `search()`, `action()`, `getPlugins()`, `togglePlugin()`, `onShow()`, `hide()`, `quit()` |
@@ -30,7 +31,7 @@ uTools-like launcher built with Electron — vanilla JS, no bundler.
 
 - `Alt+Space` toggles the launcher window (frameless, centered, always-on-top)
 - On show: renders empty state immediately → resizes window to fit → loads top apps from frecency
-- Typing invokes `ipcMain.handle('search', …)` which runs every plugin's `search()` in the main process (async, 5s timeout per plugin, errors per plugin don't block others)
+- Typing invokes `ipcMain.handle('search', …)` which sends the query to a **Worker thread** via `pluginWorker.postMessage()` — plugins run in an isolated thread, main process stays responsive (5s timeout, errors per plugin don't block others)
 - Each plugin returns result items with an `action` descriptor (`{ type: 'copy' | 'open' | 'openFile' | 'run', … }`)
 - Selection runs the action via `ipcMain.on('action', …)`, then the window hides
 - Plugins are `require()`d from `plugins/` directory at startup
@@ -96,7 +97,9 @@ Add new plugins by creating a `.js` file in `plugins/` — no registration neede
 - `contextIsolation: true`, `nodeIntegration: false`
 - CSP set via `<meta>` tag in `index.html`
 - All IPC goes through `contextBridge` only
-- Plugins run in the **main process** (no sandbox), so review external plugins before adding
+- Plugins' `search()` and `getTopApps()` run in a **Worker thread** with `require('electron')` mocked — main process stays responsive even if a plugin hangs
+- Plugin `init()` / `destroy()` / `trackLaunch()` still run in **main process** (need Electron API access)
+- Review external plugins before adding to `plugins/`
 
 ## Plugin management in settings
 
@@ -104,6 +107,7 @@ Add new plugins by creating a `.js` file in `plugins/` — no registration neede
 - Each plugin has a toggle switch to enable/disable without deleting the file
 - Disabled plugins are skipped in search and `getTopApps`
 - Plugins can implement `destroy()` for cleanup when disabled or app quits
+- **Import plugin**: click "导入插件" → file picker → validates + copies to `plugins/` → Worker reloads automatically
 
 ## App Icon
 

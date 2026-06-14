@@ -187,3 +187,20 @@
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 3px;
     }
+
+    /* ── Toast 消息 ── */
+    .toast {
+      position: fixed; bottom: 16px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(50,200,100,0.92);
+      color: #fff;
+      font-size: 12px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.toast-error { background: rgba(255,80,80,0.92); }
+    .toast.open { opacity: 1; transform: translateX(-50%) translateY(0); }

@@ -3,6 +3,7 @@
     const chkOntop = document.getElementById('chk-ontop')
     const btn = document.getElementById('btn-import')
     const btnClear = document.getElementById('btn-clear')
+    const btnImportPlugin = document.getElementById('btn-import-plugin')
     const mList = document.getElementById('manual-list')
     const pluginList = document.getElementById('plugin-list')
 
@@ -99,6 +100,28 @@
       window.electronAPI.addManualApp().then(result => {
         if (result) renderManualApps()
       })
+    })
+
+    // ── 提示消息 ──
+    function toast(msg, isError) {
+      const el = document.createElement('div')
+      el.className = 'toast' + (isError ? ' toast-error' : '')
+      el.textContent = msg
+      document.body.appendChild(el)
+      requestAnimationFrame(() => el.classList.add('open'))
+      setTimeout(() => { el.classList.remove('open'); setTimeout(() => el.remove(), 300) }, 3000)
+    }
+
+    // ── 导入插件 ──
+    on(btnImportPlugin, 'click', async () => {
+      const result = await window.electronAPI.importPlugin()
+      if (!result) return
+      if (result.success) {
+        toast(`插件 "${result.plugin.name}" 导入成功`)
+        renderPlugins()
+      } else {
+        toast(result.error, true)
+      }
     })
 
     // ── 保存并退出 ──

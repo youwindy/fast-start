@@ -1,4 +1,3 @@
-// Preload — 通过 contextBridge 向渲染进程暴露安全的 API（不暴露 Node.js）
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -6,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTopApps: () => ipcRenderer.invoke('getTopApps'),
   getPlugins: () => ipcRenderer.invoke('getPlugins'),
   togglePlugin: (id) => ipcRenderer.invoke('togglePlugin', id),
+  importPlugin: () => ipcRenderer.invoke('importPlugin'),
   addManualApp: () => ipcRenderer.invoke('addManualApp'),
   getManualApps: () => ipcRenderer.invoke('getManualApps'),
   removeManualApp: (p) => ipcRenderer.invoke('removeManualApp', p),

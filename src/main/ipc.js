@@ -1,43 +1,23 @@
 const path = require('path')
+const fs = require('fs')
 const { app, ipcMain, clipboard, shell, dialog, BrowserWindow } = require('electron')
 const { spawn } = require('child_process')
 
 let appStartTime = 0
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('搜索超时')), ms)),
-  ])
-}
-
-function registerIPC(win, plugins, settings) {
+function registerIPC(win, plugins, pluginLoader, settings) {
   appStartTime = Date.now()
 
   ipcMain.handle('search', async (_, query) => {
     const q = query.trim()
     if (!q) return []
     const enabledStates = settings.getSettings().pluginStates || {}
-    const results = await Promise.allSettled(
-      plugins.map(async p => {
-        if (enabledStates[p.id] === false) return null
-        try {
-          const items = await withTimeout(
-            Promise.resolve().then(() => p.module.search(q)),
-            5000,
-          )
-          if (items && items.length) {
-            return { pluginName: p.name, pluginIcon: p.icon, items }
-          }
-        } catch (e) {
-          return { pluginName: p.name, pluginIcon: p.icon, items: [], error: e.message }
-        }
-        return null
-      })
-    )
-    return results
-      .filter(r => r.status === 'fulfilled' && r.value)
-      .map(r => r.value)
+    try {
+      return await pluginLoader.searchAll(q, enabledStates)
+    } catch (e) {
+      console.error('[ipc] search error:', e.message)
+      return []
+    }
   })
 
   ipcMain.on('action', (_, act) => {
@@ -46,9 +26,7 @@ function registerIPC(win, plugins, settings) {
       case 'copy': clipboard.writeText(act.text); break
       case 'open': shell.openExternal(act.url); break
       case 'openFile':
-        for (const p of plugins) {
-          if (typeof p.module.trackLaunch === 'function') p.module.trackLaunch(act.path)
-        }
+        pluginLoader.trackLaunch(act.path)
         shell.openPath(act.path)
         break
       case 'showInFolder': shell.showItemInFolder(act.path); break
@@ -104,29 +82,19 @@ function registerIPC(win, plugins, settings) {
     }
   })
 
-  ipcMain.handle('getTopApps', () => {
+  ipcMain.handle('getTopApps', async () => {
     const enabledStates = settings.getSettings().pluginStates || {}
-    const out = []
-    for (const p of plugins) {
-      if (enabledStates[p.id] === false) continue
-      if (typeof p.module.getTopApps === 'function') {
-        try {
-          const items = p.module.getTopApps(5)
-          if (items && items.length) {
-            out.push({ pluginName: p.name, pluginIcon: p.icon, items })
-          }
-        } catch (e) {
-          console.error(`[plugin] ${p.id} getTopApps error:`, e.message)
-        }
-      }
+    try {
+      return await pluginLoader.getTopApps(5, enabledStates)
+    } catch (e) {
+      console.error('[ipc] getTopApps error:', e.message)
+      return []
     }
-    return out
   })
 
   ipcMain.handle('getPlugins', () => {
     const pluginStates = settings.getSettings().pluginStates || {}
-    const { getPluginsMeta } = require('./plugin-loader')
-    return getPluginsMeta().map(p => ({
+    return pluginLoader.getPluginsMeta().map(p => ({
       ...p,
       enabled: pluginStates[p.id] !== false,
     }))
@@ -141,6 +109,9 @@ function registerIPC(win, plugins, settings) {
     if (p && pluginStates[pluginId] === false && typeof p.module.destroy === 'function') {
       try { p.module.destroy() } catch (e) { console.error(`[plugin] ${pluginId} destroy error:`, e.message) }
     }
+    if (pluginStates[pluginId] !== false) {
+      pluginLoader.reloadPlugins()
+    }
     return pluginStates[pluginId]
   })
 
@@ -153,6 +124,7 @@ function registerIPC(win, plugins, settings) {
   ipcMain.handle('removeManualApp', (_, filePath) => {
     const p = plugins.find(p => p.id === 'apps')
     if (p && typeof p.module.removeManualApp === 'function') p.module.removeManualApp(filePath)
+    pluginLoader.reloadPlugins()
   })
 
   ipcMain.handle('addManualApp', async () => {
@@ -170,7 +142,40 @@ function registerIPC(win, plugins, settings) {
     if (!name) return null
     const p = plugins.find(p => p.id === 'apps')
     if (p && typeof p.module.addManualApp === 'function') p.module.addManualApp(name, fp)
+    pluginLoader.reloadPlugins()
     return { name, path: fp }
+  })
+
+  ipcMain.handle('importPlugin', async () => {
+    const result = await dialog.showOpenDialog({
+      title: '导入插件',
+      filters: [{ name: '插件文件', extensions: ['js'] }],
+      properties: ['openFile'],
+    })
+    if (result.canceled || !result.filePaths.length) return null
+
+    const filePath = result.filePaths[0]
+    const fileName = path.basename(filePath)
+
+    const validation = pluginLoader.validatePlugin(filePath)
+    if (!validation.valid) return validation
+
+    const pluginsDir = path.join(__dirname, '..', '..', 'plugins')
+    const dest = path.join(pluginsDir, fileName)
+    try {
+      fs.copyFileSync(filePath, dest)
+    } catch (e) {
+      return { success: false, error: `文件复制失败: ${e.message}` }
+    }
+
+    // Clean require cache so Worker can load fresh
+    try { delete require.cache[require.resolve(dest)] } catch {}
+
+    await pluginLoader.reloadPlugins()
+    return {
+      success: true,
+      plugin: { ...validation.meta, id: fileName.replace('.js', '') },
+    }
   })
 
   ipcMain.handle('getSettings', () => settings.getSettings())
@@ -183,6 +188,7 @@ function registerIPC(win, plugins, settings) {
   ipcMain.handle('clearFrecency', () => {
     const p = plugins.find(p => p.id === 'apps')
     if (p && typeof p.module.clearFrecency === 'function') p.module.clearFrecency()
+    pluginLoader.reloadPlugins()
   })
 
   ipcMain.on('openSettings', () => {
