@@ -182,6 +182,39 @@ function registerIPC(win, plugins, pluginLoader, settings) {
     }
   })
 
+  ipcMain.handle('getAliases', () => {
+    const p = plugins.find(p => p.id === 'aliases')
+    if (p && typeof p.module.getAll === 'function') return p.module.getAll()
+    return []
+  })
+
+  ipcMain.handle('addAlias', async (_, data) => {
+    const p = plugins.find(p => p.id === 'aliases')
+    if (p && typeof p.module.addAlias === 'function') {
+      p.module.addAlias(data)
+      pluginLoader.reloadPlugins()
+    }
+  })
+
+  ipcMain.handle('removeAlias', (_, alias) => {
+    const p = plugins.find(p => p.id === 'aliases')
+    if (p && typeof p.module.removeAlias === 'function') {
+      p.module.removeAlias(alias)
+      pluginLoader.reloadPlugins()
+    }
+  })
+
+  ipcMain.handle('pickFile', async (event) => {
+    const dialogWin = BrowserWindow.fromWebContents(event.sender)
+    const result = await dialog.showOpenDialog(dialogWin || win, {
+      title: '选择文件',
+      properties: ['openFile'],
+    })
+    if (dialogWin) dialogWin.setAlwaysOnTop(true)
+    if (result.canceled || !result.filePaths.length) return null
+    return result.filePaths[0]
+  })
+
   ipcMain.handle('getSettings', () => settings.getSettings())
   ipcMain.handle('setSettings', (_, data) => {
     const s = settings.setSettings(data)

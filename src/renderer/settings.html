@@ -59,6 +59,27 @@
         </div>
       </div>
 
+      <!-- 快捷别名 -->
+      <div class="section">
+        <div class="section-title">快捷别名</div>
+        <div id="alias-list"></div>
+        <div class="row">
+          <div>
+            <div class="row-label">新建别名</div>
+            <div class="row-desc">为常用命令/应用创建快捷键</div>
+          </div>
+          <button id="btn-add-alias" class="btn btn-primary">+ 新建</button>
+        </div>
+        <div id="alias-form" class="alias-form" style="display:none">
+          <input type="text" id="alias-key" placeholder="别名 (如 ipconfig)" />
+          <input type="text" id="alias-payload" placeholder="命令/路径/URL/文本" />
+          <div style="display:flex;gap:4px;margin-top:4px">
+            <button id="btn-pick" class="btn btn-primary" style="font-size:10px">📁 选择文件</button>
+            <button id="btn-alias-save" class="btn btn-primary">✓ 添加</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 插件管理 -->
       <div class="section">
         <div class="section-title">插件管理</div>

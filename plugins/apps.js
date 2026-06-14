@@ -106,6 +106,33 @@ function saveManualApps() {
   } catch {}
 }
 
+const ALIAS_MAP = {
+  calc: ['calculator'],
+  cmd: ['command prompt'],
+  note: ['notepad'],
+  paint: ['paint', 'mspaint'],
+  regedit: ['registry editor'],
+  taskmgr: ['task manager'],
+  explorer: ['file explorer'],
+  ps: ['powershell', 'windows powershell'],
+  control: ['control panel'],
+  devmgmt: ['device manager'],
+  disk: ['disk management'],
+  services: ['services'],
+  notepad: ['notepad'],
+  powershell: ['powershell', 'windows powershell'],
+  computer: ['computer management'],
+  dfrgui: ['defragment'],
+  cleanmgr: ['disk cleanup'],
+  resmon: ['resource monitor'],
+  dxdiag: ['directx diagnostic'],
+  taskschd: ['task scheduler'],
+  osk: ['on-screen keyboard'],
+  snipping: ['snipping tool'],
+  snippingtool: ['snipping tool'],
+  mspaint: ['paint'],
+}
+
 function rebuildAllApps() {
   const seen = new Set()
   allApps = []
@@ -120,6 +147,12 @@ function rebuildAllApps() {
       item.pinyinFull = py.full
       item.pinyinFirst = py.first
     }
+    const lower = item.name.toLowerCase()
+    const appAliases = []
+    for (const [alias, targets] of Object.entries(ALIAS_MAP)) {
+      if (targets.some(t => lower.includes(t))) appAliases.push(alias)
+    }
+    if (appAliases.length) item.aliases = appAliases
   }
 }
 
@@ -127,6 +160,12 @@ function matchToken(a, token) {
   const lower = a.name.toLowerCase()
   if (lower.startsWith(token)) return 100
   if (lower.includes(token)) return 80
+  if (a.aliases) {
+    for (const alias of a.aliases) {
+      if (alias.startsWith(token)) return 75
+      if (alias.includes(token)) return 65
+    }
+  }
   if (a.pinyinFull?.includes(token)) return 60
   if (a.pinyinFirst?.includes(token)) return 50
   return 0

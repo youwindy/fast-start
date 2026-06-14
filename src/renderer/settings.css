@@ -204,3 +204,36 @@
     }
     .toast.toast-error { background: rgba(255,80,80,0.92); }
     .toast.open { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── 别名 ── */
+    #alias-list { padding: 4px 0; }
+    .alias-empty { font-size: 11px; color: #555; text-align: center; padding: 8px 0; }
+    .alias-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .alias-item:last-child { border-bottom: none; }
+    .alias-info { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11px; }
+    .alias-icon { flex-shrink: 0; }
+    .alias-key-text { color: #5eafff; font-weight: 500; flex-shrink: 0; }
+    .alias-type-badge { color: #555; font-size: 10px; flex-shrink: 0; }
+    .alias-detail { color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .alias-del {
+      background: none; border: none;
+      color: #555; font-size: 14px;
+      cursor: pointer; padding: 2px 6px; flex-shrink: 0;
+      transition: color 0.1s;
+    }
+    .alias-del:hover { color: #ff6666; }
+    .alias-form { padding: 8px 0; }
+    .alias-form input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      color: #ccc; font-size: 11px;
+      padding: 6px 10px;
+      margin-top: 4px;
+    }
+    .alias-form input::placeholder { color: #444; }
