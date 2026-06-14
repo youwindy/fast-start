@@ -7,7 +7,8 @@
 ## 特性
 
 - **Alt+Space** 全局快捷键，呼出/隐藏启动窗口
-- **插件系统** — `plugins/` 目录下放 `.js` 文件即自动注册，无需配置
+- **插件系统** — `plugins/` 目录下放 `.js` 文件即自动注册，无需配置，支持在设置页面导入外部插件
+- **插件隔离** — 插件的搜索和查询在 **Worker 线程** 中运行，不影响主进程响应
 - **拼音搜索** — 支持中文程序名的拼音首字母/全拼搜索（基于 `pinyin-pro`）
 - **频率排序** — 根据启动次数自动排序，常用应用靠前，空输入显示高频应用
 - **应用扫描** — 自动扫描「开始菜单」已安装应用，支持手动导入 `.exe`/`.lnk`
@@ -33,7 +34,7 @@ npm run dev
 ## 打包
 
 ```bash
-# NSIS 安装包 → release/Fast Start Setup 1.0.0.exe
+# NSIS 安装包 → release/Fast Start Setup 1.2.0.exe
 npm run dist
 
 # 免安装绿色版 → release/win-unpacked/
@@ -71,7 +72,7 @@ module.exports = {
 
 > `run` 类型通过 `child_process.spawn()` 执行，支持带参数的系统命令（如回收站 `explorer.exe shell:RecycleBinFolder`）。
 >
-> 插件运行在主进程（无沙箱），添加外部插件前请审查代码。
+> 插件的 `search()` 和 `getTopApps()` 运行在 **Worker 线程** 中（`require('electron')` 被 mock 为安全的精简实现），即使插件挂起也不会阻塞主进程。`init()` / `destroy()` 等生命周期方法仍在主进程执行，可正常使用 Electron API。添加外部插件前请审查代码。
 
 ## 技术栈
 
@@ -93,7 +94,8 @@ fast-start/
 ├── src/
 │   ├── main/          # 主进程
 │   │   ├── index.js         # 入口，窗口管理
-│   │   ├── plugin-loader.js # 插件加载器
+│   │   ├── plugin-loader.js # 插件加载器（Worker 管理）
+│   │   ├── plugin-worker.js # 插件 Worker 线程（搜索隔离）
 │   │   ├── ipc.js           # IPC 通信处理
 │   │   ├── tray.js          # 系统托盘
 │   │   └── settings.js      # 设置窗口
