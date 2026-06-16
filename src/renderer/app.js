@@ -322,10 +322,12 @@ function showMenu(items, idx, cx, cy) {
   wrap.appendChild(box)
   document.body.appendChild(wrap)
 
-  const bbox = box.getBoundingClientRect()
+  let bbox = box.getBoundingClientRect()
   const vw = document.documentElement.clientWidth
   const vh = document.documentElement.clientHeight
   let left = cx, top = cy
+  if (bbox.height > vh - 8) box.style.maxHeight = (vh - 8) + 'px'
+  bbox = box.getBoundingClientRect()
   if (left + bbox.width > vw) left = vw - bbox.width - 4
   if (top + bbox.height > vh) top = vh - bbox.height - 4
   box.style.left = Math.max(4, left) + 'px'
