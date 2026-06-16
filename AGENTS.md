@@ -1,146 +1,130 @@
 # AGENTS.md
 
-uTools-like launcher built with Electron — vanilla JS, no bundler.
+Vanilla JS Electron launcher (uTools-like), no bundler, no framework, no tests.
 
 ## Commands
 
 | Command | Action |
 |---|---|
-| `npm start` / `npm run dev` | Launch the app (hidden, press `Alt+Space` to show) |
-| `npm install` | Install dependencies |
+| `npm start` / `npm run dev` | Same thing (`electron .`). App starts hidden; press **`Alt+Space`** to show |
+| `npm run dist` | NSIS installer → `release/Fast Start Setup $VERSION.exe` |
+| `npm run dist-dir` | Unpacked portable → `release/win-unpacked/` |
+| `npm install` | Installs deps. `.npmrc` sets `electron_mirror` to npmmirror.com — needed for China |
 
 ## Architecture
 
-| Layer | File | Role |
-|---|---|---|
-| Main process | `src/main/index.js` | Entry, window, hotkey — delegates to `plugin-loader.js` + `ipc.js` |
-| | `src/main/plugin-loader.js` | Plugin loader: `loadPlugins()` → calls `init()`, stores metadata + module refs for non-search ops; `initWorker()` → spawns Worker thread; proxy methods (`searchAll`, `getTopApps`, `trackLaunch`) → IPC to Worker; `importPlugin` → validate + copy; `destroyAllPlugins()` → signals Worker to exit |
-| | `src/main/plugin-worker.js` | **Worker thread** — mocks `require('electron')` for plugins that use `app.getPath()`, loads all plugins, handles `search`/`getTopApps`/`reload`/`destroy`/`trackLaunch` messages from main thread |
-| | `src/main/ipc.js` | All IPC handlers (search/getTopApps proxied to Worker, action, resize, context-menu, plugin toggle, importPlugin) |
-| | `src/main/settings.js` | Settings CRUD + settings window management + pluginStates storage |
-| | `src/main/tray.js` | System tray icon + context menu |
-| Preload | `src/preload/index.js` | `contextBridge`-exposed API: `search()`, `action()`, `getPlugins()`, `togglePlugin()`, `onShow()`, `hide()`, `quit()` |
-| Renderer | `src/renderer/index.html` + `app.js` + `style.css` | Search input + result list, keyboard nav (↑↓ Enter Esc), plugin error display |
-| | `src/renderer/settings.html` + `settings-app.js` + `settings.css` | Settings page (toggles, import, plugin enable/disable, save & quit) |
-| Plugins | `plugins/apps.js` | Start Menu scan + frecency + pinyin + manual apps |
-| | `plugins/calculator.js` | Safe math expression evaluation |
-| | `plugins/websearch.js` | Multi-engine search + URL detection + command shortcuts |
-| | `plugins/system.js` | 75+ Windows system functions (Recycle Bin, Settings, Control Panel, Env Vars, etc.) |
+```
+main process                 Worker thread (plugin-worker.js)
+  │                                │
+  ├─ loadPlugins() ──require()──►  init() called HERE too
+  ├─ initWorker() ──spawns──►  loads plugins + sends 'ready'
+  ├─ searchAll() ──postMessage──►  msg.type='search' → 'result'
+  ├─ getTopApps() ──postMessage──►  msg.type='getTopApps' → 'result'
+  ├─ trackLaunch() ──postMessage──►  msg.type='trackLaunch'
+  ├─ reloadPlugins() ──postMessage──►  msg.type='reload' → 'reload-ok'
+  └─ destroyAllPlugins() ──postMessage──►  msg.type='destroy' → process.exit(0)
+```
 
-## How it works
+Key file roles:
 
-- `Alt+Space` toggles the launcher window (frameless, centered, always-on-top)
-- On show: renders empty state immediately → resizes window to fit → loads top apps from frecency
-- Typing invokes `ipcMain.handle('search', …)` which sends the query to a **Worker thread** via `pluginWorker.postMessage()` — plugins run in an isolated thread, main process stays responsive (5s timeout, errors per plugin don't block others)
-- Each plugin returns result items with an `action` descriptor (`{ type: 'copy' | 'open' | 'openFile' | 'run', … }`)
-- Selection runs the action via `ipcMain.on('action', …)`, then the window hides
-- Plugins are `require()`d from `plugins/` directory at startup
-- If a plugin exports an `init()` function, it's called after `require()` (used for preloading data, e.g., scanning Start Menu)
+| Path | Role |
+|---|---|
+| `src/main/index.js` | App entry: creates BrowserWindow, registers hotkey, wires everything |
+| `src/main/plugin-loader.js` | Loads plugins (calls `init()` main-side), spawns/manages Worker, proxies IPC to Worker |
+| `src/main/plugin-worker.js` | **Worker thread**. Mocks `require('electron')` → safe `app.getPath()`. Loads all plugins AGAIN, calls `init()` worker-side. Handles search/getTopApps/reload/destroy/trackLaunch |
+| `src/main/ipc.js` | All IPC handlers, action dispatch, settings, manual apps, plugin import |
+| `src/main/settings.js` | Settings CRUD → `userData/settings.json`. Manages settings window lifecycle |
+| `src/main/tray.js` | System tray + icon (prefers `resources/icon-16.png`, falls back to programmatic bitmap) |
+| `src/preload/index.js` | `contextBridge` exposing `window.electronAPI` |
+| `src/renderer/app.js` | Search input, keyboard nav, result rendering, context-menu, race-condition guards |
 
-## Plugin API
+## Critical non-obvious facts
 
-A plugin file must export:
+### `init()` runs in BOTH processes
+`plugin-loader.js` calls `mod.init()` in the **main process** during `loadPlugins()`.
+`plugin-worker.js` also calls `mod.init()` in the **Worker thread** during `loadAll()`.
+This means plugin `init()` must be idempotent — it runs twice. Used for preloading data (e.g., scanning Start Menu).
+
+### `trackLaunch()` runs in BOTH processes too
+`plugin-loader.js` calls `p.module.trackLaunch()` in the **main process** AND posts a `trackLaunch` message to the Worker. This means any plugin exporting `trackLaunch` will have it invoked twice per launch. Only `plugins/apps.js` currently exports it (for frecency tracking).
+
+### Worker IPC protocol
+All messages are plain objects with `{ type, id?, ... }`. The `id` field correlates requests to responses. Only search/getTopApps produce a result message; the rest are fire-and-forget.
+
+### Search timeout
+Plugin search has a **5-second hard timeout** (`plugin-loader.js` L95–L98). The promise rejects, the worker keeps running, but the result is discarded. Per-plugin errors don't block others.
+
+### Plugins with split main/Worker roles (CRUD + search)
+`plugins/aliases.js` and `plugins/apps.js` both export `search()` (Worker-side) **and** CRUD methods called directly from `src/main/ipc.js` in the main process. Aliases exports `getAll`/`addAlias`/`removeAlias`; apps exports `addManualApp`/`removeManualApp`/`getManualApps`/`clearFrecency`. Any new plugin needing main-process I/O can follow the same model: add IPC handlers in ipc.js, export matching methods.
+
+### Worker auto-restarts on crash
+If the Worker exits with non-zero code (`plugin-loader.js` L84–L88), the main process restarts it after 1 second. Pending search promises are rejected; queued messages during restart are resent once the Worker re-signals `ready`.
+
+### `openSettings` has a 3-second startup guard
+`ipc.js` L232: `if (Date.now() - appStartTime < 3000) return` — the settings window cannot be opened in the first 3 seconds after app starts. The `open-settings-win` message from the tray also goes through this handler. If settings won't open, this is why.
+
+### No tests, no linter, no formatter
+No test runner, no ESLint, no Prettier. Pure `require()` + `module.exports`. Just Electron + vanilla JS.
+
+### Settings storage
+All user data persists to `app.getPath('userData')` → `settings.json`, `frecency.json`, `manual-apps.json`, `pinyin-cache.json`. These are JSON files, read/written synchronously.
+
+### Window sizing quirks
+- Window starts at `640×68` (compact), grows dynamically as results populate
+- Max height clamped to **480px** in main process, minimum **68px**
+- Height measured via `getBoundingClientRect().bottom` of last child + padding-bottom (NOT `scrollHeight` — unreliable in flex layouts)
+- Window re-centers on cursor screen after each resize
+- Multi-monitor: positions on the display containing the cursor
+
+## Plugin system
+
+Create a `.js` file in `plugins/`. Exports:
 
 ```js
 module.exports = {
-  name: 'Display name',     // string (required)
-  icon: '🔢',                 // string (required, emoji or text)
-  version: '1.0.0',          // string (optional)
-  description: '…',          // string (optional)
-  author: '…',               // string (optional)
-  search(query) { … }         // (query: string) ⇒ Item[] | Promise<Item[]>
+  name: string,           // required
+  icon: string,           // required (emoji or text)
+  version: string,        // optional
+  description: string,    // optional
+  author: string,         // optional
+  init(),                 // optional — runs in BOTH main + worker (must be idempotent)
+  destroy(),              // optional — runs in both when disabled/quitting
+  search(query) { ... },  // required — (string) => Item[] | Promise<Item[]>
+  getTopApps(n) { ... },  // optional — (number) => Item[]
+  trackLaunch(p) { ... }, // optional — (string path) => void
 }
 ```
 
-Each `Item`:
-
-```js
-{ title: '…', desc: '…', icon: '…', action: { type: 'copy'|'open'|'openFile'|'run', … } }
-```
-
-**Action types:**
+**Item action types:**
 
 | Type | Fields | Behavior |
 |---|---|---|
-| `copy` | `text` | Copy to clipboard |
-| `open` | `url` | Open in default browser |
-| `openFile` | `path` | Open file/folder (supports `.lnk` `.exe` `.msc` etc.) |
-| `run` | `command`, `args?` | Spawn a command with optional arguments (e.g., `explorer.exe shell:RecycleBinFolder`) |
-| `runAsAdmin` | `path` | Run file as administrator |
-| `showInFolder` | `path` | Reveal file in Explorer |
+| `copy` | `text` | Clipboard copy |
+| `open` | `url` | Default browser |
+| `openFile` | `path` | `shell.openPath()` (supports `.lnk`, `.exe`, `.msc`) |
+| `showInFolder` | `path` | `shell.showItemInFolder()` |
+| `runAsAdmin` | `path` | PowerShell `Start-Process -Verb RunAs` (path is double-quoted — spaces safe) |
+| `run` | `command`, `args?` | `child_process.spawn()` with `shell: true` — supports shell built-ins and PATH resolution |
 
-Add new plugins by creating a `.js` file in `plugins/` — no registration needed.
+## Packaging optimizations
 
-## Renderer architecture
+`afterPack.js` strips from the Electron bundle:
+- Chrome locales (keeps only `en-US.pak` + `zh-CN.pak`)
+- SwiftShader / Vulkan / DXIL / DXCompiler / D3DCompiler DLLs
+- `LICENSES.chromium.html` (~19 MB)
+- `LICENSE.electron.txt`
+- `ffmpeg.dll`
 
-### Layout
-- **No `height: 100%` on body** — body auto-sizes to content, avoiding flex allocation measurement issues
-- **No `flex: 1` on `#result-list`** — list auto-sizes to children with dynamic `max-height` calc via JS (`480 - searchWrap.offsetHeight`)
-- `html { overflow: hidden }` clips excess content when window is capped
-
-### Height measurement (`updateHeight`)
-- Uses `getBoundingClientRect().bottom` of the **last child** element plus `list.paddingBottom` → always returns actual content height
-- `scrollHeight` is unreliable in flex layouts because it returns `clientHeight` when content fits without overflow
-- `setContentSize` used in main process for frameless window reliability
-- Minimum clamp: `Math.max(68, h)` in renderer, `Math.min(Math.max(h, 68), 480)` in main process
-
-### Event delegation
-- `.item` elements use **event delegation** on the `#result-list` container via `e.target.closest('.item')`
-- Eliminates per-item `click`/`dblclick`/`contextmenu`/`mouseover` listeners — significant perf win for large result sets
-
-### Race condition prevention
-- `queryId` counter: each `input` event increments, stale async results are discarded if `id !== queryId`
-- `loading` flag: suppresses `input` event handler during `onShow` to prevent duplicate `getTopApps` calls
-
-## Security
+## Security posture
 
 - `contextIsolation: true`, `nodeIntegration: false`
-- CSP set via `<meta>` tag in `index.html`
-- All IPC goes through `contextBridge` only
-- Plugins' `search()` and `getTopApps()` run in a **Worker thread** with `require('electron')` mocked — main process stays responsive even if a plugin hangs
-- Plugin `init()` / `destroy()` / `trackLaunch()` still run in **main process** (need Electron API access)
-- Review external plugins before adding to `plugins/`
+- CSP: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'`
+- All IPC via `contextBridge` only
+- Worker thread mocks `require('electron')` — plugins cannot access real Electron APIs from the Worker
+- Only `init()` / `destroy()` / `trackLaunch()` run in main process (have real Electron API access)
 
-## Plugin management in settings
+## Known gotchas
 
-- Settings page shows all plugins with metadata (version, description, author)
-- Each plugin has a toggle switch to enable/disable without deleting the file
-- Disabled plugins are skipped in search and `getTopApps`
-- Plugins can implement `destroy()` for cleanup when disabled or app quits
-- **Import plugin**: click "导入插件" → file picker → validates + copies to `plugins/` → Worker reloads automatically
-
-## App Icon
-
-| File | Purpose |
-|---|---|
-| `resources/icon.svg` | Source SVG (blue rounded square + lightning bolt) |
-| `resources/icon-*.png` | Generated PNG variants (16/32/48/64/128/256) |
-
-- `tray.js` prefers `resources/icon-16.png` if it exists, else falls back to programmatic bitmap
-- `index.js` sets `resources/icon-16.png` as window icon
-
-## Packaging
-
-| Command | Output |
-|---|---|
-| `npm run dist` | NSIS installer → `release/Fast Start Setup 1.0.0.exe` |
-| `npm run dist-dir` | Unpacked portable → `release/win-unpacked/` |
-
-### Optimizations applied
-
-- `compression: maximum` — LZMA compression for NSIS 7z payload
-- `asar: true` — code bundled into compressed archive (`app.asar`)
-- `removePackageScripts: true` — strips dev-only metadata
-- `npmRebuild: false` — no native modules, skip rebuild
-- `afterPack.js` removes: 54 unused locale `.pak` (keep only `en-US` + `zh-CN`), SwiftShader/Vulkan, DXIL/DXCompiler, `LICENSES.chromium.html`, `ffmpeg.dll`
-- Result: **~79 MB** installer (from ~97 MB baseline)
-
-## Environment
-
-- `.npmrc` sets `electron_mirror=https://npmmirror.com/mirrors/electron/` — Electron downloads use a China mirror
-- Electron `^42.4.0` installed as `devDependency`
-
-## Ground rules
-
-- Prefer executable truth over prose — if config and docs disagree, trust config/scripts.
-- Keep this file current — when a future session discovers new quirks, add them here.
+- **`.npmrc`** sets npmmirror.com mirror — without it, `electron` (`^42.4.0`) download will fail or be very slow outside mainland China
+- **No hot reload**: the Worker only reloads plugins via the `reload` message (triggered by settings toggle, plugin import, manual app add/remove)
+- **`pinyin-pro`** is the only runtime dependency — used for Chinese pinyin search in `plugins/apps.js`

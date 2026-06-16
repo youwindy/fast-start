@@ -223,9 +223,7 @@ function registerIPC(win, plugins, pluginLoader, settings) {
   })
 
   ipcMain.handle('clearFrecency', () => {
-    const p = plugins.find(p => p.id === 'apps')
-    if (p && typeof p.module.clearFrecency === 'function') p.module.clearFrecency()
-    pluginLoader.reloadPlugins()
+    return pluginLoader.clearFrecency()
   })
 
   ipcMain.on('openSettings', () => {

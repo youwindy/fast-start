@@ -215,6 +215,10 @@ module.exports = {
     return manualApps.map(a => ({ name: a.name, path: a.path }))
   },
 
+  getAllPaths() {
+    return allApps.map(a => a.path)
+  },
+
   getTopApps(n) {
     return allApps
       .map(a => ({ name: a.name, path: a.path, freq: frecency.get(a.path) || 0 }))

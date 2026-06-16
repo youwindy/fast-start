@@ -79,6 +79,14 @@ parentPort.on('message', (msg) => {
       parentPort.postMessage({ type: 'reload-ok' })
       break
 
+    case 'clearFrecency':
+      for (const p of plugins) {
+        if (typeof p.module.clearFrecency === 'function') {
+          try { p.module.clearFrecency() } catch {}
+        }
+      }
+      break
+
     case 'trackLaunch':
       for (const p of plugins) {
         if (typeof p.module.trackLaunch === 'function') {
